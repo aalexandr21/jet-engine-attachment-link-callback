@@ -1,5 +1,5 @@
 ## Description
-Adds new callback to Dynamic Field widget, which allows to convert attachment file ID into attchment.
+Adds new callback to Dynamic Field widget, which allows to convert attachment file ID into attchment. Works with any Media Value format and with JetEngine Gallery fields
 
 ## Instructions
 - Install and activate the plugin;

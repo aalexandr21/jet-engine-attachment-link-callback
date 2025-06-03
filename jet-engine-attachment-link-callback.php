@@ -25,46 +25,67 @@ function jet_engine_add_attachment_link_callback( $callbacks ) {
 	return $callbacks;
 }
 
-function jet_engine_get_attachment_file_link( $attachment_id, $display_name = 'file_name', $label = '', $is_external = '' ) {
-
-	$url = wp_get_attachment_url( $attachment_id );
-
-	switch ( $display_name ) {
-		case 'post_title':
-			$name = get_the_title( $attachment_id );
-			break;
-
-		case 'current_post_title':
-			$name = get_the_title( get_the_ID() );
-			break;
-
-		case 'parent_post_title':
-			$parent_id = wp_get_post_parent_id( $attachment_id );
-
-			if ( ! $parent_id ) {
-				$parent_id = get_the_ID();
-			}
-
-			$name = get_the_title( $parent_id );
-			break;
-
-		case 'custom':
-			$name = $label;
-			break;
-
-		default:
-			$name = basename( $url );
-			break;
+function jet_engine_get_attachment_file_link( $attachment_id, $display_name = 'file_name', $label = '', $is_external = '', $download = '', $separator = ', ' ) {
+	
+	if ( ! is_array( $attachment_id ) ) {
+		$attachment_id = explode( ',', $attachment_id );
+	} elseif ( is_array( $attachment_id ) && isset( $attachment_id['id'] ) ) {
+		$attachment_id = [ $attachment_id['id'] ];
 	}
 
-	$target      = '';
-	$is_external = filter_var( $is_external, FILTER_VALIDATE_BOOLEAN );
+	$links = [];
 
-	if ( $is_external ) {
-		$target = ' target="_blank"';
+	foreach ( $attachment_id as $key => $value ) {
+
+		$file_data = \Jet_Engine_Tools::get_attachment_image_data_array( $value, 'all' );
+
+		$url[$key] = $file_data['url'];
+		$id = $file_data['id'];
+
+		switch ( $display_name ) {
+			case 'post_title':
+				$name = get_the_title( $id );
+				break;
+
+			case 'current_post_title':
+				$name = get_the_title( get_the_ID() );
+				break;
+
+			case 'parent_post_title':
+				$parent_id = wp_get_post_parent_id( $id );
+
+				if ( ! $parent_id ) {
+					$parent_id = get_the_ID();
+				}
+
+				$name = get_the_title( $parent_id );
+				break;
+
+			case 'custom':
+				$name = $label;
+				break;
+
+			default:
+				$name = basename( $url[$key] );
+				break;
+		}
+
+		$attrs      = '';
+		$is_external = filter_var( $is_external, FILTER_VALIDATE_BOOLEAN );
+		$download    = filter_var( $download, FILTER_VALIDATE_BOOLEAN );
+
+		if ( $is_external ) {
+			$attrs = ' target="_blank"';
+		}
+
+		if ( $download && ! $is_external ) {
+			$attrs .= ' download';
+		}
+
+		$links[] = sprintf( '<a href="%1$s"%3$s>%2$s</a>', $url[$key], $name, $attrs );
 	}
 
-	return sprintf( '<a href="%1$s"%3$s>%2$s</a>', $url, $name, $target );
+	return implode( $separator, $links );
 
 }
 
@@ -74,6 +95,8 @@ function jet_engine_add_attachment_link_callback_args( $args, $callback, $settin
 		$args[] = isset( $settings['jet_attachment_name'] ) ? $settings['jet_attachment_name'] : 'file_name';
 		$args[] = isset( $settings['jet_attachment_label'] ) ? $settings['jet_attachment_label'] : '';
 		$args[] = isset( $settings['jet_attachment_is_external'] ) ? $settings['jet_attachment_is_external'] : '';
+		$args[] = isset( $settings['jet_attachment_download'] ) ? $settings['jet_attachment_download'] : '';
+		$args[] = isset( $settings['jet_attachment_separator'] ) ? $settings['jet_attachment_separator'] : '';
 	}
 
 	return $args;
@@ -118,6 +141,27 @@ function jet_engine_add_attachment_link_callback_controls( $args = array() ) {
 		'label'       => esc_html__( 'Open in new window', 'jet-engine' ),
 		'type'        => 'switcher',
 		'default'     => '',
+		'condition'   => array(
+			'dynamic_field_filter' => 'yes',
+			'filter_callback'      => array( 'jet_engine_get_attachment_file_link' ),
+		),
+	);
+
+	$args['jet_attachment_download'] = array(
+		'label'       => esc_html__( 'Can be downloaded', 'jet-engine' ),
+		'type'        => 'switcher',
+		'default'     => '',
+		'condition'   => array(
+			'jet_attachment_is_external' => '',
+			'dynamic_field_filter' => 'yes',
+			'filter_callback'      => array( 'jet_engine_get_attachment_file_link' ),
+		),
+	);
+
+	$args['jet_attachment_separator'] = array(
+		'label'       => esc_html__( 'Separator (for multiple files)', 'jet-engine' ),
+		'type'        => 'text',
+		'default'     => ', ',
 		'condition'   => array(
 			'dynamic_field_filter' => 'yes',
 			'filter_callback'      => array( 'jet_engine_get_attachment_file_link' ),
